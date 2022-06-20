@@ -1,0 +1,139 @@
+---
+title: "grib"
+author: "Jake Eisaguirre"
+date: "6/20/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(here)
+library(tidyverse)
+library(lubridate)
+library(raster)
+```
+
+```{r}
+date <- as_date(Sys.Date(), tz="UTC") %>% 
+  str_replace("-","") %>% 
+  str_replace("-","")
+
+s <- Sys.time()
+
+mod_time  <- as.character((.POSIXct(s, "UTC") - (3 * 60 * 60))) %>% 
+  substring(12)
+
+mod_time <-  str_sub(mod_time, 1, nchar(mod_time) -6)
+
+mod_time <- "12"
+
+
+mod.list <- c("000",  "001",  "002",  "003",  "004",  "005",  "006",  "007",  "008",  "009",  "010",  "011",  "012",  "013",  "014",  "015",  "016",  "017",  "018", "019", "020", "021",  "022",  "023",  "024",  "025",  "026",  "027",  "028",  "029",  "030",  "031",  "032",  "033",  "034",  "035",  "036",  "037",  "038",  "039", "040",  "041", "042",  "043",  "044",  "045",  "046",  "047",  "048",  "049",  "050",  "051",  "052",  "053",  "054",  "055",  "056",  "057",  "058",  "059", "060",  "061",  "062", "063",  "064",  "065",  "066",  "067",  "068",  "069",  "070",  "071",  "072",  "073",  "074",  "075",  "076",  "077",  "078",  "079", "080",  "081",  "082",  "083", "084",  "085",  "086",  "087",  "088",  "089",  "090",  "091",  "092",  "093",  "094",  "095",  "096",  "097",  "098",  "099", "100", "101", "102", "103", "104", "105", "106", "107", "108", "109", "110" ,"111", "112", "113", "114", "115", "116", "117", "118", "119", "120")
+
+
+
+gribstring <- "mod%s.grb"
+
+
+
+
+```
+
+# direction
+```{r}
+direction <- vector("list", length(mod.list))
+
+unlink(here("direction/*"))
+for(i in seq_along(mod.list)) {
+  url_dcomp <- paste0("https://nomads.ncep.noaa.gov/cgi-bin/filter_gfswave.pl?file=gfswave.t", mod_time, "z.wcoast.0p16.f", mod.list[[1]] ,".grib2&lev_surface=on&var_DIRPW=on&subregion=&leftlon=240.34&rightlon=240.35&toplat=34.3&bottomlat=34.2&dir=%2Fgfs.", date ,"%2F" , mod_time, "%2Fwave%2Fgridded")
+    
+  gribfile <- sprintf(gribstring, mod.list[i])
+  
+  download.file(url_dcomp, here("direction", gribfile))
+  
+}
+
+brick_d <- stack(here("direction", list.files(path = here( "direction"), pattern = "*.grb"))) %>% 
+  projectRaster(crs = 4326)
+
+
+brick_csv_d <- rasterToPoints(brick_d) %>% 
+  as.data.frame() %>% 
+  pivot_longer(!c(x,y), names_to = "mod", values_to = "angle")
+
+
+
+```
+
+# height
+```{r}
+height <- vector("list", length(mod.list))
+
+unlink(here("height/*"))
+for(i in seq_along(mod.list)) {
+  url_hcomp <- paste0("https://nomads.ncep.noaa.gov/cgi-bin/filter_gfswave.pl?file=gfswave.t", mod_time, "z.wcoast.0p16.f", mod.list[[1]] ,".grib2&lev_surface=on&var_HTSGW=on&subregion=&leftlon=240.34&rightlon=240.35&toplat=34.3&bottomlat=34.2&dir=%2Fgfs.", date ,"%2F" , mod_time, "%2Fwave%2Fgridded")
+    
+  gribfile <- sprintf(gribstring, mod.list[i])
+  
+  download.file(url_hcomp, here("height", gribfile))
+  
+}
+
+brick_h <- stack(here("height", list.files(path = here("height"), pattern = "*.grb"))) %>% 
+  projectRaster(crs = 4326)
+
+
+brick_csv_h <- rasterToPoints(brick_h) %>% 
+  as.data.frame() %>% 
+  pivot_longer(!c(x,y), names_to = "mod", values_to = "height")
+```
+
+
+#  period
+```{r}
+
+period <- vector("list", length(mod.list))
+
+unlink(here("period/*"))
+for(i in seq_along(mod.list)) {
+  url_pcomp <- paste0("https://nomads.ncep.noaa.gov/cgi-bin/filter_gfswave.pl?file=gfswave.t", mod_time, "z.wcoast.0p16.f", mod.list[[1]] ,".grib2&lev_surface=on&var_PERPW=on&subregion=&leftlon=240.34&rightlon=240.35&toplat=34.3&bottomlat=34.2&dir=%2Fgfs.", date ,"%2F" , mod_time, "%2Fwave%2Fgridded")
+    
+  gribfile <- sprintf(gribstring, mod.list[i])
+  
+  download.file(url_pcomp, here("period", gribfile))
+  
+}
+
+brick_p <- stack(here("period", list.files(path = here("period"), pattern = "*.grb"))) %>% 
+  projectRaster(crs = 4326)
+
+
+brick_csv_p <- rasterToPoints(brick_p) %>% 
+  as.data.frame() %>% 
+  pivot_longer(!c(x,y), names_to = "mod", values_to = "period")
+```
+
+# wind
+```{r}
+wind <- vector("list", length(mod.list))
+
+unlink(here("wind/*"))
+for(i in seq_along(mod.list)) {
+  url_wcomp <- paste0("https://nomads.ncep.noaa.gov/cgi-bin/filter_gfswave.pl?file=gfswave.t", mod_time, "z.wcoast.0p16.f", mod.list[[1]] ,".grib2&lev_surface=on&var_WIND=on&subregion=&leftlon=240.34&rightlon=240.35&toplat=34.3&bottomlat=34.2&dir=%2Fgfs.", date ,"%2F" , mod_time, "%2Fwave%2Fgridded")
+    
+  gribfile <- sprintf(gribstring, mod.list[i])
+  
+  download.file(url_wcomp, here("wind", gribfile))
+  
+}
+
+brick_w <- stack(here("wind", list.files(path = here("wind"), pattern = "*.grb"))) %>% 
+  projectRaster(crs = 4326)
+
+
+brick_csv_w <- rasterToPoints(brick_w) %>% 
+  as.data.frame() %>% 
+  pivot_longer(!c(x,y), names_to = "mod", values_to = "wind")
+```
+
