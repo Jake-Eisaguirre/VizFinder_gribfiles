@@ -12,6 +12,7 @@ library(here)
 library(tidyverse)
 library(lubridate)
 library(raster)
+library(fuzzyjoin)
 ```
 
 ```{r}
@@ -37,16 +38,42 @@ gribstring <- "mod%s.grb"
 
 
 
-
 ```
 
-# direction
+```{r}
+longitude <- as.vector(round(c(-119.6670, -120.5000, -120.1670), 5))
+latitude <-  as.vector(round(c(34.16667, 34.16667, 33.66633),5))
+loc <- as.data.frame(cbind(longitude, latitude))
+```
+
+
+```{r}
+
+# https://nomads.ncep.noaa.gov/cgi-bin/filter_gfswave.pl?file=gfswave.t18z.wcoast.0p16.f000.grib2&lev_surface=on&var_DIRPW=on&var_HTSGW=on&var_PERPW=on&var_WIND=on&subregion=&leftlon=240.333&rightlon=240.333&toplat=34.16667&bottomlat=34.16667&dir=%2Fgfs.20220620%2F18%2Fwave%2Fgridded
+
+direction <- vector("list", length(mod.list))
+
+unlink(here("direction/*"))
+for(i in seq_along(mod.list)) {
+  url_dcomp <- paste0("https://nomads.ncep.noaa.gov/cgi-bin/filter_gfswave.pl?file=gfswave.t" , mod_time, "z.wcoast.0p16.f", mod.list[[1]] ,".grib2&lev_surface=on&var_DIRPW=on&var_HTSGW=on&var_PERPW=on&var_WIND=on&subregion=&leftlon=240.333&rightlon=240.333&toplat=34.16667&bottomlat=34.16667&dir=%2Fgfs.", date ,"%2F" , mod_time, "%2Fwave%2Fgridded")
+    
+  gribfile <- sprintf(gribstring, mod.list[i])
+  
+  download.file(url_dcomp, here("direction", gribfile))
+  
+}
+
+brick_d <- stack(here("direction", list.files(path = here( "direction"), pattern = "*.grb"))) %>% 
+  projectRaster(crs = 4326)
+```
+
+
 ```{r}
 direction <- vector("list", length(mod.list))
 
 unlink(here("direction/*"))
 for(i in seq_along(mod.list)) {
-  url_dcomp <- paste0("https://nomads.ncep.noaa.gov/cgi-bin/filter_gfswave.pl?file=gfswave.t", mod_time, "z.wcoast.0p16.f", mod.list[[1]] ,".grib2&lev_surface=on&var_DIRPW=on&subregion=&leftlon=240.34&rightlon=240.35&toplat=34.3&bottomlat=34.2&dir=%2Fgfs.", date ,"%2F" , mod_time, "%2Fwave%2Fgridded")
+  url_dcomp <- paste0("https://nomads.ncep.noaa.gov/cgi-bin/filter_gfswave.pl?file=gfswave.t", mod_time, "z.wcoast.0p16.f", mod.list[[1]] ,".grib2&lev_surface=on&var_DIRPW=onsubregion=&leftlon=239.52&rightlon=240.35&toplat=34.26&bottomlat=33.68&dir=%2Fgfs.", date ,"%2F" , mod_time, "%2Fwave%2Fgridded")
     
   gribfile <- sprintf(gribstring, mod.list[i])
   
@@ -60,9 +87,17 @@ brick_d <- stack(here("direction", list.files(path = here( "direction"), pattern
 
 brick_csv_d <- rasterToPoints(brick_d) %>% 
   as.data.frame() %>% 
-  pivot_longer(!c(x,y), names_to = "mod", values_to = "angle")
+  pivot_longer(!c(x,y), names_to = "mod", values_to = "angle") %>% 
+  rename(longitude = x) %>% 
+  rename(latitude = y) %>% 
+  geo_join(loc, max_dist = 10, by = c("longitude", "latitude")) %>% 
+  dplyr::select(!c("latitude.x", "longitude.x")) %>% 
+  rename(x=longitude.y) %>% 
+  rename(y=latitude.y)
 
-
+direction_df <- brick_csv_d %>% 
+  group_by(mod, x , y) %>% 
+  summarize(angle = mean(angle))
 
 ```
 
@@ -86,7 +121,17 @@ brick_h <- stack(here("height", list.files(path = here("height"), pattern = "*.g
 
 brick_csv_h <- rasterToPoints(brick_h) %>% 
   as.data.frame() %>% 
-  pivot_longer(!c(x,y), names_to = "mod", values_to = "height")
+  pivot_longer(!c(x,y), names_to = "mod", values_to = "height") %>% 
+  rename(longitude = x) %>% 
+  rename(latitude = y) %>% 
+  geo_join(loc, max_dist = 10, by = c("longitude", "latitude")) %>% 
+  dplyr::select(!c("latitude.x", "longitude.x")) %>% 
+  rename(x=longitude.y) %>% 
+  rename(y=latitude.y)
+
+height_df <- brick_csv_h %>% 
+  group_by(mod, x , y) %>% 
+  summarize(height = mean(height))
 ```
 
 
@@ -111,7 +156,17 @@ brick_p <- stack(here("period", list.files(path = here("period"), pattern = "*.g
 
 brick_csv_p <- rasterToPoints(brick_p) %>% 
   as.data.frame() %>% 
-  pivot_longer(!c(x,y), names_to = "mod", values_to = "period")
+  pivot_longer(!c(x,y), names_to = "mod", values_to = "period") %>% 
+  rename(longitude = x) %>% 
+  rename(latitude = y) %>% 
+  geo_join(loc, max_dist = 10, by = c("longitude", "latitude")) %>% 
+  dplyr::select(!c("latitude.x", "longitude.x")) %>% 
+  rename(x=longitude.y) %>% 
+  rename(y=latitude.y)
+
+period_df <- brick_csv_p %>% 
+  group_by(mod, x , y) %>% 
+  summarize(period = mean(period))
 ```
 
 # wind
@@ -134,6 +189,27 @@ brick_w <- stack(here("wind", list.files(path = here("wind"), pattern = "*.grb")
 
 brick_csv_w <- rasterToPoints(brick_w) %>% 
   as.data.frame() %>% 
-  pivot_longer(!c(x,y), names_to = "mod", values_to = "wind")
+  pivot_longer(!c(x,y), names_to = "mod", values_to = "wind") %>% 
+  rename(longitude = x) %>% 
+  rename(latitude = y) %>% 
+  geo_join(loc, max_dist = 10, by = c("longitude", "latitude")) %>% 
+  dplyr::select(!c("latitude.x", "longitude.x")) %>% 
+  rename(x=longitude.y) %>% 
+  rename(y=latitude.y)
+
+wind_df <- brick_csv_w %>% 
+  group_by(mod, x , y) %>% 
+  summarize(wind = mean(wind))
+```
+
+# join dfs
+```{r}
+
+df <- left_join(direction_df, height_df, by = c("mod", "x", "y")) %>% 
+  left_join(period_df, by = c("mod", "x", "y")) %>% 
+  left_join(wind_df, by = c("mod", "x", "y"))
+
+write.csv(df, here("data.csv"))
+
 ```
 
