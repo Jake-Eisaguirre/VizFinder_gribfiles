@@ -4,7 +4,7 @@ author: "Jake Eisaguirre"
 date: "6/20/2022"
 output: html_document
 ---
-
+# 03:00PST, 09:00PST, 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
@@ -30,7 +30,7 @@ mod_time <-  str_sub(mod_time, 1, nchar(mod_time) -6)
 mod_time <- "12"
 
 
-mod.list <- c("000",  "001",  "002",  "003",  "004",  "005",  "006",  "007",  "008",  "009",  "010",  "011",  "012",  "013",  "014",  "015",  "016",  "017",  "018", "019", "020", "021",  "022",  "023",  "024",  "025",  "026",  "027",  "028",  "029",  "030",  "031",  "032",  "033",  "034",  "035",  "036",  "037",  "038",  "039", "040",  "041", "042",  "043",  "044",  "045",  "046",  "047",  "048",  "049",  "050",  "051",  "052",  "053",  "054",  "055",  "056",  "057",  "058",  "059", "060",  "061",  "062", "063",  "064",  "065",  "066",  "067",  "068",  "069",  "070",  "071",  "072",  "073",  "074",  "075",  "076",  "077",  "078",  "079", "080",  "081",  "082",  "083", "084",  "085",  "086",  "087",  "088",  "089",  "090",  "091",  "092",  "093",  "094",  "095",  "096",  "097",  "098",  "099", "100", "101", "102", "103", "104", "105", "106", "107", "108", "109", "110" ,"111", "112", "113", "114", "115", "116", "117", "118", "119", "120")
+mod.list <- c("000",  "001",  "002",  "003",  "004",  "005",  "006",  "007",  "008",  "009",  "010",  "011",  "012",  "013",  "014",  "015",  "016",  "017",  "018", "019", "020", "021",  "022",  "023",  "024",  "025",  "026",  "027",  "028",  "029",  "030",  "031",  "032",  "033",  "034",  "035",  "036",  "037",  "038",  "039", "040",  "041", "042",  "043",  "044",  "045",  "046",  "047",  "048",  "049",  "050",  "051",  "052",  "053",  "054",  "055",  "056",  "057",  "058",  "059", "060",  "061",  "062", "063",  "064",  "065",  "066",  "067",  "068",  "069",  "070",  "071",  "072",  "073",  "074",  "075",  "076",  "077",  "078",  "079", "080",  "081",  "082",  "083", "084",  "085",  "086",  "087",  "088",  "089",  "090",  "091",  "092",  "093",  "094",  "095",  "096",  "097",  "098",  "099", "100", "101", "102", "103", "104", "105", "106", "107", "108", "109", "110" ,"111", "112", "113", "114", "115", "116", "117", "118", "119")
 
 
 
@@ -49,22 +49,26 @@ loc <- as.data.frame(cbind(longitude, latitude))
 
 ```{r}
 
-# https://nomads.ncep.noaa.gov/cgi-bin/filter_gfswave.pl?file=gfswave.t18z.wcoast.0p16.f000.grib2&lev_surface=on&var_DIRPW=on&var_HTSGW=on&var_PERPW=on&var_WIND=on&subregion=&leftlon=240.333&rightlon=240.333&toplat=34.16667&bottomlat=34.16667&dir=%2Fgfs.20220620%2F18%2Fwave%2Fgridded
+utc_time <- as_datetime(s, "UTC")
 
-direction <- vector("list", length(mod.list))
+pst_dates <-list()
 
-unlink(here("direction/*"))
-for(i in seq_along(mod.list)) {
-  url_dcomp <- paste0("https://nomads.ncep.noaa.gov/cgi-bin/filter_gfswave.pl?file=gfswave.t" , mod_time, "z.wcoast.0p16.f", mod.list[[1]] ,".grib2&lev_surface=on&var_DIRPW=on&var_HTSGW=on&var_PERPW=on&var_WIND=on&subregion=&leftlon=240.333&rightlon=240.333&toplat=34.16667&bottomlat=34.16667&dir=%2Fgfs.", date ,"%2F" , mod_time, "%2Fwave%2Fgridded")
-    
-  gribfile <- sprintf(gribstring, mod.list[i])
+mod_runs <- mod.list %>% 
+  as.numeric()
+
+
+for(i in 1:length(mod_runs)){
   
-  download.file(url_dcomp, here("direction", gribfile))
-  
+pst_dates[[i]] <- (utc_time + ((mod_runs[[i]]-3)*60*60)) %>% 
+  as_datetime(tz = "PST8PDT")
+
 }
 
-brick_d <- stack(here("direction", list.files(path = here( "direction"), pattern = "*.grb"))) %>% 
-  projectRaster(crs = 4326)
+pst <- pst_dates %>% 
+  as.numeric() %>% 
+  as.POSIXct(origin = "1970-01-01")
+
+
 ```
 
 
@@ -84,6 +88,7 @@ for(i in seq_along(mod.list)) {
 brick_d <- stack(here("direction", list.files(path = here( "direction"), pattern = "*.grb"))) %>% 
   projectRaster(crs = 4326)
 
+#names(brick_d) <- pst
 
 brick_csv_d <- rasterToPoints(brick_d) %>% 
   as.data.frame() %>% 
