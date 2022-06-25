@@ -4,7 +4,7 @@ author: "Jake Eisaguirre"
 date: "6/20/2022"
 output: html_document
 ---
-# 03:00PST, 09:00PST, 
+# Run time:  03:00PST, 09:00PST, 15:00PST, 21:00PST
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
@@ -15,8 +15,9 @@ library(raster)
 library(fuzzyjoin)
 ```
 
+# current date and model choices
 ```{r}
-date <- as_date(Sys.Date(), tz="UTC") %>% 
+date <- as_date(Sys.Date(), tz="PDT") %>% 
   str_replace("-","") %>% 
   str_replace("-","")
 
@@ -27,7 +28,7 @@ mod_time  <- as.character((.POSIXct(s, "UTC") - (3 * 60 * 60))) %>%
 
 mod_time <-  str_sub(mod_time, 1, nchar(mod_time) -6)
 
-mod_time <- "12"
+#mod_time <- "12"
 
 
 mod.list <- c("000",  "001",  "002",  "003",  "004",  "005",  "006",  "007",  "008",  "009",  "010",  "011",  "012",  "013",  "014",  "015",  "016",  "017",  "018", "019", "020", "021",  "022",  "023",  "024",  "025",  "026",  "027",  "028",  "029",  "030",  "031",  "032",  "033",  "034",  "035",  "036",  "037",  "038",  "039", "040",  "041", "042",  "043",  "044",  "045",  "046",  "047",  "048",  "049",  "050",  "051",  "052",  "053",  "054",  "055",  "056",  "057",  "058",  "059", "060",  "061",  "062", "063",  "064",  "065",  "066",  "067",  "068",  "069",  "070",  "071",  "072",  "073",  "074",  "075",  "076",  "077",  "078",  "079", "080",  "081",  "082",  "083", "084",  "085",  "086",  "087",  "088",  "089",  "090",  "091",  "092",  "093",  "094",  "095",  "096",  "097",  "098",  "099", "100", "101", "102", "103", "104", "105", "106", "107", "108", "109", "110" ,"111", "112", "113", "114", "115", "116", "117", "118", "119")
@@ -40,16 +41,17 @@ gribstring <- "mod%s.grb"
 
 ```
 
+# loc of enviro variables
 ```{r}
 longitude <- as.vector(round(c(-119.6670, -120.5000, -120.1670), 5))
 latitude <-  as.vector(round(c(34.16667, 34.16667, 33.66633),5))
 loc <- as.data.frame(cbind(longitude, latitude))
 ```
 
-
+# time/date conversionn
 ```{r}
 
-utc_time <- as_datetime(s, "UTC")
+unix_time <- as.numeric(as.POSIXct(s))
 
 pst_dates <-list()
 
@@ -59,8 +61,7 @@ mod_runs <- mod.list %>%
 
 for(i in 1:length(mod_runs)){
   
-pst_dates[[i]] <- (utc_time + ((mod_runs[[i]]-3)*60*60)) %>% 
-  as_datetime(tz = "PST8PDT")
+pst_dates[[i]] <- (unix_time + ((mod_runs[[i]]*60*60)-(3*60*60))) 
 
 }
 
@@ -69,10 +70,14 @@ pst <- pst_dates %>%
   as.POSIXct(origin = "1970-01-01")
 
 
+rm(pst_dates)
+gc()
+
 ```
 
+# direction/angle degrees
 
-```{r}
+```{r, message = F}
 direction <- vector("list", length(mod.list))
 
 unlink(here("direction/*"))
@@ -88,7 +93,7 @@ for(i in seq_along(mod.list)) {
 brick_d <- stack(here("direction", list.files(path = here( "direction"), pattern = "*.grb"))) %>% 
   projectRaster(crs = 4326)
 
-#names(brick_d) <- pst
+names(brick_d) <- pst
 
 brick_csv_d <- rasterToPoints(brick_d) %>% 
   as.data.frame() %>% 
@@ -106,8 +111,8 @@ direction_df <- brick_csv_d %>%
 
 ```
 
-# height
-```{r}
+# height meters
+```{r, message = F}
 height <- vector("list", length(mod.list))
 
 unlink(here("height/*"))
@@ -122,6 +127,8 @@ for(i in seq_along(mod.list)) {
 
 brick_h <- stack(here("height", list.files(path = here("height"), pattern = "*.grb"))) %>% 
   projectRaster(crs = 4326)
+
+names(brick_h) <- pst
 
 
 brick_csv_h <- rasterToPoints(brick_h) %>% 
@@ -140,8 +147,8 @@ height_df <- brick_csv_h %>%
 ```
 
 
-#  period
-```{r}
+#  period seconds
+```{r, message = F}
 
 period <- vector("list", length(mod.list))
 
@@ -158,6 +165,7 @@ for(i in seq_along(mod.list)) {
 brick_p <- stack(here("period", list.files(path = here("period"), pattern = "*.grb"))) %>% 
   projectRaster(crs = 4326)
 
+names(brick_p) <- pst
 
 brick_csv_p <- rasterToPoints(brick_p) %>% 
   as.data.frame() %>% 
@@ -174,8 +182,8 @@ period_df <- brick_csv_p %>%
   summarize(period = mean(period))
 ```
 
-# wind
-```{r}
+# wind speed m/s
+```{r, message = F}
 wind <- vector("list", length(mod.list))
 
 unlink(here("wind/*"))
@@ -191,6 +199,7 @@ for(i in seq_along(mod.list)) {
 brick_w <- stack(here("wind", list.files(path = here("wind"), pattern = "*.grb"))) %>% 
   projectRaster(crs = 4326)
 
+names(brick_w) <- pst
 
 brick_csv_w <- rasterToPoints(brick_w) %>% 
   as.data.frame() %>% 
@@ -214,7 +223,40 @@ df <- left_join(direction_df, height_df, by = c("mod", "x", "y")) %>%
   left_join(period_df, by = c("mod", "x", "y")) %>% 
   left_join(wind_df, by = c("mod", "x", "y"))
 
-write.csv(df, here("data.csv"))
+
+```
+
+# east channel
+```{r}
+EC <- df %>% 
+  filter(y == 34.16667,
+         x == -119.6670) %>% 
+  ungroup() %>% 
+  dplyr::select(!c(y, x))
+                
+write.csv(EC, here("EC.csv"))
+```
+
+# west channel
+```{r}
+WC <- df %>% 
+  filter(y == 34.16667,
+         x == -120.5000) %>% 
+  ungroup() %>% 
+  dplyr::select(!c(y, x))
+
+write.csv(WC, here("WC.csv"))
+```
+
+# SRI
+```{r}
+SRI <- df %>% 
+  filter(y == 33.66633,
+         x == -120.1670) %>% 
+  ungroup() %>% 
+  dplyr::select(!c(y, x))
+
+write.csv(SRI, here("SRI.csv"))
 
 ```
 
