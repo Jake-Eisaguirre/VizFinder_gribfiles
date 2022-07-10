@@ -43,8 +43,8 @@ gribstring <- "mod%s.grb"
 
 # loc of enviro variables
 ```{r}
-longitude <- as.vector(round(c(-119.6670, -120.5000, -120.1670), 5))
-latitude <-  as.vector(round(c(34.16667, 34.16667, 33.66633),5))
+longitude <- as.vector(round(c(-119.6058, -120.4408, -120.1068), 5))
+latitude <-  as.vector(round(c(34.13483, 34.13483, 33.63383),5))
 loc <- as.data.frame(cbind(longitude, latitude))
 ```
 
@@ -100,7 +100,8 @@ brick_csv_d <- rasterToPoints(brick_d) %>%
   pivot_longer(!c(x,y), names_to = "mod", values_to = "angle") %>% 
   rename(longitude = x) %>% 
   rename(latitude = y) %>% 
-  geo_join(loc, max_dist = 10, by = c("longitude", "latitude")) %>% 
+  group_by(mod) %>% 
+  geo_join(loc, max_dist = 0.1, by = c("longitude", "latitude")) %>% 
   dplyr::select(!c("latitude.x", "longitude.x")) %>% 
   rename(x=longitude.y) %>% 
   rename(y=latitude.y)
@@ -136,7 +137,7 @@ brick_csv_h <- rasterToPoints(brick_h) %>%
   pivot_longer(!c(x,y), names_to = "mod", values_to = "height") %>% 
   rename(longitude = x) %>% 
   rename(latitude = y) %>% 
-  geo_join(loc, max_dist = 10, by = c("longitude", "latitude")) %>% 
+  geo_join(loc, max_dist = 0.1, by = c("longitude", "latitude")) %>% 
   dplyr::select(!c("latitude.x", "longitude.x")) %>% 
   rename(x=longitude.y) %>% 
   rename(y=latitude.y)
@@ -172,7 +173,7 @@ brick_csv_p <- rasterToPoints(brick_p) %>%
   pivot_longer(!c(x,y), names_to = "mod", values_to = "period") %>% 
   rename(longitude = x) %>% 
   rename(latitude = y) %>% 
-  geo_join(loc, max_dist = 10, by = c("longitude", "latitude")) %>% 
+  geo_join(loc, max_dist = 0.1, by = c("longitude", "latitude")) %>% 
   dplyr::select(!c("latitude.x", "longitude.x")) %>% 
   rename(x=longitude.y) %>% 
   rename(y=latitude.y)
@@ -208,7 +209,7 @@ brick_csv_w <- rasterToPoints(brick_w) %>%
   pivot_longer(!c(x,y), names_to = "mod", values_to = "wind") %>% 
   rename(longitude = x) %>% 
   rename(latitude = y) %>% 
-  geo_join(loc, max_dist = 10, by = c("longitude", "latitude")) %>% 
+  geo_join(loc, max_dist = 0.1, by = c("longitude", "latitude")) %>% 
   dplyr::select(!c("latitude.x", "longitude.x")) %>% 
   rename(x=longitude.y) %>% 
   rename(y=latitude.y)
